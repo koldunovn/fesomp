@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source ~/.zshrc)",
+      "Bash(micromamba remove:*)",
+      "Bash(micromamba activate:*)",
+      "Bash(python -c:*)",
+      "Bash(pytest:*)",
+      "Bash(source ~/micromamba/etc/profile.d/micromamba.sh)"
+    ]
+  }
+}
