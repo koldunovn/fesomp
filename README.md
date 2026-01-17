@@ -27,10 +27,16 @@ A modern Python library for working with FESOM2 (Finite Element Sea ice-Ocean Mo
 
 ## Installation
 
+### From PyPI
+
+```bash
+pip install fesomp
+```
+
 ### From source
 
 ```bash
-git clone https://github.com/yourusername/fesomp.git
+git clone https://github.com/nkolduno/fesomp.git
 cd fesomp
 pip install -e .
 ```

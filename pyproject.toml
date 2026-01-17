@@ -7,8 +7,11 @@ name = "fesomp"
 version = "0.1.0"
 description = "A Python library for working with FESOM2 unstructured ocean model data"
 readme = "README.md"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
+authors = [
+    {name = "nkolduno"},
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -30,6 +33,10 @@ dependencies = [
     "matplotlib>=3.5",
     "cartopy>=0.20",
 ]
+
+[project.urls]
+Homepage = "https://github.com/nkolduno/fesomp"
+Issues = "https://github.com/nkolduno/fesomp/issues"
 
 [project.optional-dependencies]
 dev = [
