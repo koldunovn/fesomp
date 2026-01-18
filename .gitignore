@@ -96,6 +96,7 @@ cython_debug/
 *.out
 data/
 DATA/
+!src/fesomp/diag/data/*.geojson
 
 # Temporary files
 *.tmp
