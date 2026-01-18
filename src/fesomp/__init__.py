@@ -2,6 +2,7 @@
 fesomp: A Python library for working with FESOM2 unstructured ocean model data.
 """
 
+from fesomp import diag
 from fesomp.mesh import Mesh, load_mesh
 from fesomp.plotting import (
     RegridInterpolator,
@@ -17,8 +18,10 @@ from fesomp.plotting import (
 
 __version__ = "0.1.0"
 __all__ = [
+    # Mesh
     "Mesh",
     "load_mesh",
+    # Plotting
     "plot",
     "regrid",
     "RegridInterpolator",
@@ -28,5 +31,8 @@ __all__ = [
     "TransectInterpolator",
     "great_circle_path",
     "great_circle_distance",
+    # Diagnostics module
+    "diag",
+    # Version
     "__version__",
 ]
