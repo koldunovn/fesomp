@@ -11,6 +11,14 @@ from fesomp.mesh.coordinates import (
 )
 
 
+def assert_lon_close(actual, desired, atol=1e-10):
+    """Assert longitudes are close, accounting for -180/180 wrapping."""
+    # Normalize difference to [-180, 180]
+    diff = actual - desired
+    diff = np.mod(diff + 180, 360) - 180
+    np.testing.assert_allclose(diff, 0, atol=atol)
+
+
 class TestScalarR2G:
     """Tests for scalar_r2g (rotated to geographical coordinate conversion)."""
 
@@ -105,7 +113,7 @@ class TestScalarRoundtrip:
         lon, lat = scalar_r2g(alpha, beta, gamma, rlon_orig, rlat_orig)
         rlon_back, rlat_back = scalar_g2r(alpha, beta, gamma, lon, lat)
 
-        np.testing.assert_allclose(rlon_back, rlon_orig, atol=1e-10)
+        assert_lon_close(rlon_back, rlon_orig)
         np.testing.assert_allclose(rlat_back, rlat_orig, atol=1e-10)
 
     @pytest.mark.parametrize(
@@ -126,7 +134,7 @@ class TestScalarRoundtrip:
         rlon, rlat = scalar_g2r(alpha, beta, gamma, lon_orig, lat_orig)
         lon_back, lat_back = scalar_r2g(alpha, beta, gamma, rlon, rlat)
 
-        np.testing.assert_allclose(lon_back, lon_orig, atol=1e-10)
+        assert_lon_close(lon_back, lon_orig)
         np.testing.assert_allclose(lat_back, lat_orig, atol=1e-10)
 
 
