@@ -6,6 +6,14 @@ fesomp.diag
    :undoc-members:
    :show-inheritance:
 
+Interpolation
+-------------
+
+.. automodule:: fesomp.diag.interpolate
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Sea Ice
 -------
 

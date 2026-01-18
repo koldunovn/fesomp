@@ -3,6 +3,73 @@ Diagnostics
 
 FESOMP provides oceanographic diagnostic calculations in the ``fesomp.diag`` module.
 
+Interpolation
+-------------
+
+FESOMP provides functions to interpolate data between element centers and nodes
+on the unstructured mesh. This is useful when you have data computed at element
+centers (e.g., from velocity gradients) and need it at node locations.
+
+Element to Nodes (2D)
+~~~~~~~~~~~~~~~~~~~~~
+
+Interpolate 2D data from element centers to nodes using area-weighted averaging:
+
+.. code-block:: python
+
+   import fesomp
+
+   mesh = fesomp.load_mesh("mesh.nc")
+
+   # Data at element centers (e.g., vorticity computed from velocity)
+   data_elem = compute_vorticity(u, v)  # shape: (nelem,) or (time, nelem)
+
+   # Interpolate to nodes
+   data_nodes = fesomp.diag.elem_to_nodes(
+       data_elem,
+       mesh.triangles,
+       mesh.geometry.elem_area,
+       mesh.geometry.node_area[0],
+   )
+
+Element to Nodes (3D)
+~~~~~~~~~~~~~~~~~~~~~
+
+For 3D data with vertical levels, use the level-aware interpolation that properly
+handles varying depth (inactive nodes/elements at deeper levels):
+
+.. code-block:: python
+
+   # 3D data at element centers, shape: (nelem, nlev) or (time, nelem, nlev)
+   data_3d = ...
+
+   # Interpolate with level-aware node areas
+   data_nodes_3d = fesomp.diag.elem_to_nodes_3d(
+       data_3d,
+       mesh.triangles,
+       mesh.geometry.elem_area,
+       mesh.geometry.node_area,    # Full 2D array: (nlev, n2d)
+       mesh.elem_levels,           # Element activity levels
+   )
+   # Result shape: (n2d, nlev) or (time, n2d, nlev)
+
+The ``node_area`` array from the model output is the ground truth that accounts
+for inactive triangles at each level. Inactive nodes at each level receive NaN values.
+
+Compute Node Lump
+~~~~~~~~~~~~~~~~~
+
+If you need to compute the surface node area (lumped mass) from element connectivity:
+
+.. code-block:: python
+
+   lump = fesomp.diag.compute_node_lump(
+       mesh.triangles,
+       mesh.geometry.elem_area,
+       mesh.n2d,
+   )
+   # Equivalent to mesh.geometry.node_area[0]
+
 Sea Ice Diagnostics
 -------------------
 
