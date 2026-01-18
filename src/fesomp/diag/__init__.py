@@ -3,6 +3,12 @@ FESOM2 Diagnostics Module.
 
 This module provides oceanographic diagnostic calculations for FESOM2 model output.
 
+Interpolation
+-------------
+- elem_to_nodes : Interpolate 2D data from element centers to nodes
+- elem_to_nodes_3d : Interpolate 3D data from element centers to nodes
+- compute_node_lump : Compute surface node area from element connectivity
+
 Sea Ice Diagnostics
 -------------------
 - ice_area : Compute sea ice area (concentration × cell area)
@@ -72,6 +78,9 @@ Examples
 ... )
 """
 
+# Interpolation
+from fesomp.diag.interpolate import compute_node_lump, elem_to_nodes, elem_to_nodes_3d
+
 # Sea ice diagnostics
 from fesomp.diag.ice import ice_area, ice_extent, ice_volume
 
@@ -95,6 +104,10 @@ from fesomp.diag.utils import (
 from fesomp.diag.vertical import heat_content, hovmoller, total_volume, volume_mean
 
 __all__ = [
+    # Interpolation
+    "elem_to_nodes",
+    "elem_to_nodes_3d",
+    "compute_node_lump",
     # Sea ice
     "ice_area",
     "ice_volume",

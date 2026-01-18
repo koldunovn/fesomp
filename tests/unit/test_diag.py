@@ -7,6 +7,237 @@ import xarray as xr
 from fesomp import diag
 
 
+class TestElemToNodes:
+    """Tests for elem_to_nodes function."""
+
+    def test_single_triangle(self):
+        # Single triangle: value on element should distribute to all 3 nodes
+        triangles = np.array([[0, 1, 2]])
+        elem_area = np.array([1e10])  # 1e10 m²
+
+        # Node area is elem_area / 3 for each node (each node touches 1 element)
+        node_area = np.array([1e10 / 3, 1e10 / 3, 1e10 / 3])
+
+        # Element has value 6.0
+        data = np.array([6.0])
+
+        result = diag.elem_to_nodes(data, triangles, elem_area, node_area)
+
+        # Each node should get the area-weighted average = 6.0
+        # (only one element, so it's just the element value)
+        np.testing.assert_array_almost_equal(result, [6.0, 6.0, 6.0])
+
+    def test_two_triangles(self):
+        # Two triangles sharing edge (nodes 1 and 3)
+        #    3
+        #   /|\
+        #  / | \
+        # 0--1--2
+        triangles = np.array([[0, 1, 3], [1, 2, 3]])
+        elem_area = np.array([1e10, 1e10])
+
+        # Node areas: corner nodes touch 1 element, center nodes touch 2
+        # Node 0: 1e10/3
+        # Node 1: 2*1e10/3
+        # Node 2: 1e10/3
+        # Node 3: 2*1e10/3
+        node_area = np.array([1e10 / 3, 2e10 / 3, 1e10 / 3, 2e10 / 3])
+
+        # Elements have values 10 and 20
+        data = np.array([10.0, 20.0])
+
+        result = diag.elem_to_nodes(data, triangles, elem_area, node_area)
+
+        # Node 0 touches only elem 0: value = 10
+        # Node 2 touches only elem 1: value = 20
+        # Nodes 1 and 3 touch both: area-weighted average = (10*1e10 + 20*1e10) / 2e10 = 15
+        np.testing.assert_almost_equal(result[0], 10.0)
+        np.testing.assert_almost_equal(result[2], 20.0)
+        np.testing.assert_almost_equal(result[1], 15.0)
+        np.testing.assert_almost_equal(result[3], 15.0)
+
+    def test_with_time_dimension(self):
+        # Single triangle with time dimension
+        triangles = np.array([[0, 1, 2]])
+        elem_area = np.array([1e10])
+        node_area = np.array([1e10 / 3, 1e10 / 3, 1e10 / 3])
+
+        # 3 time steps, 1 element
+        data = np.array([[5.0], [10.0], [15.0]])
+
+        result = diag.elem_to_nodes(data, triangles, elem_area, node_area)
+
+        assert result.shape == (3, 3)
+        np.testing.assert_array_almost_equal(result[0], [5.0, 5.0, 5.0])
+        np.testing.assert_array_almost_equal(result[1], [10.0, 10.0, 10.0])
+        np.testing.assert_array_almost_equal(result[2], [15.0, 15.0, 15.0])
+
+    def test_xarray_input(self):
+        triangles = np.array([[0, 1, 2]])
+        elem_area = np.array([1e10])
+        node_area = np.array([1e10 / 3, 1e10 / 3, 1e10 / 3])
+
+        data = xr.DataArray(
+            np.array([[7.0], [14.0]]),
+            dims=["time", "elem"],
+            coords={"time": [0, 1]},
+        )
+
+        result = diag.elem_to_nodes(data, triangles, elem_area, node_area)
+
+        assert isinstance(result, xr.DataArray)
+        assert "time" in result.dims
+        assert result.shape == (2, 3)
+
+
+class TestElemToNodes3d:
+    """Tests for elem_to_nodes_3d function."""
+
+    def test_single_triangle_uniform_levels(self):
+        # Single triangle, 2 levels, all nodes active at all levels
+        triangles = np.array([[0, 1, 2]])
+        elem_area = np.array([1e10])
+        elem_levels = np.array([2])  # Element active at levels 0 and 1
+
+        # node_area: (nlev, n2d) - same area at all levels
+        node_area = np.array([
+            [1e10 / 3, 1e10 / 3, 1e10 / 3],  # level 0
+            [1e10 / 3, 1e10 / 3, 1e10 / 3],  # level 1
+        ])
+
+        # Data: (nelem, nlev)
+        data = np.array([[5.0, 10.0]])
+
+        result = diag.elem_to_nodes_3d(data, triangles, elem_area, node_area, elem_levels)
+
+        assert result.shape == (3, 2)  # (n2d, nlev)
+        # Level 0: all nodes get 5.0
+        np.testing.assert_array_almost_equal(result[:, 0], [5.0, 5.0, 5.0])
+        # Level 1: all nodes get 10.0
+        np.testing.assert_array_almost_equal(result[:, 1], [10.0, 10.0, 10.0])
+
+    def test_varying_depth(self):
+        # Two triangles, one shallower than the other
+        #    3
+        #   /|\
+        #  / | \
+        # 0--1--2
+        triangles = np.array([[0, 1, 3], [1, 2, 3]])
+        elem_area = np.array([1e10, 1e10])
+        elem_levels = np.array([2, 1])  # First element 2 levels, second only 1
+
+        nlev = 2
+        # Node area at level 0: all elements active
+        # Node area at level 1: only elem 0 active
+        # Node 0: touches elem 0 only
+        # Node 1: touches elem 0 and 1 at level 0, only elem 0 at level 1
+        # Node 2: touches elem 1 only
+        # Node 3: touches elem 0 and 1 at level 0, only elem 0 at level 1
+        node_area = np.array([
+            [1e10 / 3, 2e10 / 3, 1e10 / 3, 2e10 / 3],  # level 0
+            [1e10 / 3, 1e10 / 3, 0.0, 1e10 / 3],  # level 1 (node 2 inactive)
+        ])
+
+        # Data: (nelem, nlev)
+        data = np.array([
+            [10.0, 20.0],  # elem 0
+            [30.0, 0.0],   # elem 1 (level 1 inactive, value doesn't matter)
+        ])
+
+        result = diag.elem_to_nodes_3d(data, triangles, elem_area, node_area, elem_levels)
+
+        assert result.shape == (4, 2)  # (n2d, nlev)
+
+        # Level 0: both elements contribute
+        # Node 0: only elem 0 -> 10
+        np.testing.assert_almost_equal(result[0, 0], 10.0)
+        # Node 2: only elem 1 -> 30
+        np.testing.assert_almost_equal(result[2, 0], 30.0)
+        # Nodes 1, 3: area-weighted avg of 10 and 30 -> 20
+        np.testing.assert_almost_equal(result[1, 0], 20.0)
+        np.testing.assert_almost_equal(result[3, 0], 20.0)
+
+        # Level 1: only elem 0 contributes
+        # Node 0, 1, 3: value 20
+        np.testing.assert_almost_equal(result[0, 1], 20.0)
+        np.testing.assert_almost_equal(result[1, 1], 20.0)
+        np.testing.assert_almost_equal(result[3, 1], 20.0)
+        # Node 2: inactive (NaN)
+        assert np.isnan(result[2, 1])
+
+    def test_with_time_dimension(self):
+        triangles = np.array([[0, 1, 2]])
+        elem_area = np.array([1e10])
+        elem_levels = np.array([2])
+        node_area = np.array([
+            [1e10 / 3, 1e10 / 3, 1e10 / 3],
+            [1e10 / 3, 1e10 / 3, 1e10 / 3],
+        ])
+
+        # Data: (time, nelem, nlev)
+        data = np.array([
+            [[1.0, 2.0]],   # time 0
+            [[10.0, 20.0]], # time 1
+        ])
+
+        result = diag.elem_to_nodes_3d(data, triangles, elem_area, node_area, elem_levels)
+
+        assert result.shape == (2, 3, 2)  # (time, n2d, nlev)
+        np.testing.assert_array_almost_equal(result[0, :, 0], [1.0, 1.0, 1.0])
+        np.testing.assert_array_almost_equal(result[1, :, 1], [20.0, 20.0, 20.0])
+
+    def test_xarray_input(self):
+        triangles = np.array([[0, 1, 2]])
+        elem_area = np.array([1e10])
+        elem_levels = np.array([2])
+        node_area = np.array([
+            [1e10 / 3, 1e10 / 3, 1e10 / 3],
+            [1e10 / 3, 1e10 / 3, 1e10 / 3],
+        ])
+
+        data = xr.DataArray(
+            np.array([[[5.0, 10.0]]]),
+            dims=["time", "elem", "lev"],
+            coords={"time": [0]},
+        )
+
+        result = diag.elem_to_nodes_3d(data, triangles, elem_area, node_area, elem_levels)
+
+        assert isinstance(result, xr.DataArray)
+        assert "time" in result.dims
+        assert result.shape == (1, 3, 2)
+
+
+class TestComputeNodeLump:
+    """Tests for compute_node_lump function."""
+
+    def test_single_triangle(self):
+        triangles = np.array([[0, 1, 2]])
+        elem_area = np.array([3e10])
+        n2d = 3
+
+        result = diag.compute_node_lump(triangles, elem_area, n2d)
+
+        # Each node gets 1/3 of the element area
+        expected = np.array([1e10, 1e10, 1e10])
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_two_triangles(self):
+        # Two triangles sharing edge
+        triangles = np.array([[0, 1, 3], [1, 2, 3]])
+        elem_area = np.array([3e10, 6e10])
+        n2d = 4
+
+        result = diag.compute_node_lump(triangles, elem_area, n2d)
+
+        # Node 0: 3e10/3 = 1e10
+        # Node 1: 3e10/3 + 6e10/3 = 3e10
+        # Node 2: 6e10/3 = 2e10
+        # Node 3: 3e10/3 + 6e10/3 = 3e10
+        expected = np.array([1e10, 3e10, 2e10, 3e10])
+        np.testing.assert_array_almost_equal(result, expected)
+
+
 class TestHemisphereMask:
     """Tests for hemisphere_mask function."""
 
