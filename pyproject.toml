@@ -36,6 +36,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/nkolduno/fesomp"
+Documentation = "https://fesomp.readthedocs.io"
 Issues = "https://github.com/nkolduno/fesomp/issues"
 
 [project.optional-dependencies]
@@ -47,9 +48,21 @@ dev = [
 geo = [
     "shapely>=2.0",
 ]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=2.0",
+    "sphinx-autodoc-typehints>=2.0",
+    "myst-parser>=3.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools]
+license-files = []
+
+[tool.setuptools.package-data]
+"fesomp.diag" = ["data/*.geojson"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
