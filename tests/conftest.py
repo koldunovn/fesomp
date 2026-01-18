@@ -80,4 +80,11 @@ def test_data_dir():
 @pytest.fixture
 def pi_mesh_dir(test_data_dir):
     """Path to pi-mesh test data directory."""
-    return test_data_dir / "pi-mesh"
+    pi_dir = test_data_dir / "pi-mesh"
+    required = pi_dir / "fesom.mesh.diag.nc"
+    if not required.exists():
+        pytest.skip(
+            f"pi-mesh test data not available at {required}",
+            allow_module_level=True,
+        )
+    return pi_dir
