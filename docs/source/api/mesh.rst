@@ -38,6 +38,14 @@ Spatial Index
    :undoc-members:
    :show-inheritance:
 
+Coordinate Transformations
+--------------------------
+
+.. automodule:: fesomp.mesh.coordinates
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Readers
 -------
 

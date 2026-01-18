@@ -152,3 +152,65 @@ FESOMP automatically detects whether data is on nodes or elements:
    # Uses mesh.depth_layers
 
 This detection happens automatically in functions like ``transect()`` and ``plot()``.
+
+Coordinate Transformations
+--------------------------
+
+FESOM2 meshes often use rotated coordinate systems to avoid singularities at the poles.
+FESOMP provides functions to convert between rotated and geographical coordinates.
+
+Scalar Coordinate Conversion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Convert coordinates between rotated and geographical systems:
+
+.. code-block:: python
+
+   from fesomp.mesh import scalar_r2g, scalar_g2r
+   import numpy as np
+
+   # Euler angles defining the rotation (typical FESOM values)
+   alpha, beta, gamma = 50, 15, -90
+
+   # Convert from rotated to geographical coordinates
+   rlon = np.array([0.0, 10.0, 20.0])
+   rlat = np.array([45.0, -30.0, 60.0])
+   lon, lat = scalar_r2g(alpha, beta, gamma, rlon, rlat)
+
+   # Convert from geographical to rotated coordinates
+   rlon_back, rlat_back = scalar_g2r(alpha, beta, gamma, lon, lat)
+
+Vector Rotation
+~~~~~~~~~~~~~~~
+
+Rotate velocity or other vector fields between coordinate systems:
+
+.. code-block:: python
+
+   from fesomp.mesh import vec_rotate_r2g, vec_rotate_g2r
+
+   # Euler angles
+   alpha, beta, gamma = 50, 15, -90
+
+   # Coordinates where vectors are defined
+   lon = np.array([10.0, 20.0, -30.0])
+   lat = np.array([45.0, -30.0, 60.0])
+
+   # Vector components in rotated coordinates
+   u_rot = np.array([1.0, 2.0, -1.0])  # eastward component
+   v_rot = np.array([0.5, -0.5, 1.5])  # northward component
+
+   # Rotate vectors to geographical coordinates
+   # flag=1 means lon/lat are in geographical coordinates
+   # flag=0 means lon/lat are in rotated coordinates
+   u_geo, v_geo = vec_rotate_r2g(alpha, beta, gamma, lon, lat, u_rot, v_rot, flag=1)
+
+   # Rotate vectors from geographical to rotated coordinates
+   u_rot_back, v_rot_back = vec_rotate_g2r(alpha, beta, gamma, lon, lat, u_geo, v_geo, flag=1)
+
+The ``flag`` parameter specifies the coordinate system of the input ``lon``/``lat``:
+
+- ``flag=1``: lon/lat are in geographical coordinates
+- ``flag=0``: lon/lat are in rotated coordinates
+
+The functions will automatically compute the coordinates in the other system as needed.
