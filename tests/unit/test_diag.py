@@ -209,6 +209,25 @@ class TestHovmoller:
         np.testing.assert_array_almost_equal(result[0], 1.0)
         np.testing.assert_array_almost_equal(result[1], 2.0)
 
+    def test_hovmoller_node_area_level_mismatch(self):
+        data = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])  # 3 levels
+        node_area = np.array(
+            [[1.0, 2.0], [1.0, 2.0], [1.0, 2.0], [1.0, 2.0]]  # 4 levels
+        )
+
+        with pytest.warns(UserWarning, match="one more vertical level"):
+            result = diag.hovmoller(data, node_area)
+
+        expected = diag.hovmoller(data, node_area[:3])
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_hovmoller_node_area_level_error(self):
+        data = np.ones((4, 2))  # 4 levels
+        node_area = np.ones((3, 2))  # 3 levels
+
+        with pytest.raises(ValueError, match="only node_area having one extra"):
+            diag.hovmoller(data, node_area)
+
 
 class TestVolumeMean:
     """Tests for volume_mean function."""
@@ -240,6 +259,32 @@ class TestVolumeMean:
         # Volume-weighted: (20*10 + 15*40) / 50 = (200 + 600) / 50 = 16
         expected = 16.0
         np.testing.assert_almost_equal(result, expected)
+
+    def test_volume_mean_node_area_level_mismatch(self):
+        temp = np.ones((3, 2)) * 5.0  # 3 layers
+        node_area = np.array(
+            [
+                [1.0, 1.0],
+                [2.0, 2.0],
+                [3.0, 3.0],
+                [4.0, 4.0],
+            ]
+        )
+        depth_levels = np.array([0.0, 10.0, 20.0, 30.0])
+
+        with pytest.warns(UserWarning, match="node_area has one more vertical level"):
+            result = diag.volume_mean(temp, node_area, depth_levels)
+
+        expected = diag.volume_mean(temp, node_area[:3], depth_levels)
+        np.testing.assert_allclose(result, expected)
+
+    def test_volume_mean_node_area_level_error(self):
+        temp = np.ones((4, 2))  # 4 layers
+        node_area = np.ones((3, 2))  # 3 levels
+        depth_levels = np.array([0.0, 10.0, 20.0, 30.0, 40.0])
+
+        with pytest.raises(ValueError, match="only node_area having one extra"):
+            diag.volume_mean(temp, node_area, depth_levels)
 
 
 class TestHeatContent:
