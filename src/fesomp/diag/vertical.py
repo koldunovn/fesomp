@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import xarray as xr
 
@@ -68,6 +70,26 @@ def hovmoller(
             if depth_dim in data.coords:
                 depth = data.coords[depth_dim].values
 
+        if node_area.ndim == 2 and depth_dim is not None:
+            nlev_data = data.sizes[depth_dim]
+            nlev_area = node_area.shape[0]
+            if nlev_area != nlev_data:
+                diff = nlev_area - nlev_data
+                if diff != 1:
+                    raise ValueError(
+                        "node_area has {0} vertical levels but data has {1}; "
+                        "only node_area having one extra level is supported "
+                        "(levels vs layers).".format(nlev_area, nlev_data)
+                    )
+                warnings.warn(
+                    "node_area has one more vertical level than data; "
+                    "using the first {0} levels of node_area to match data "
+                    "(levels vs layers).".format(nlev_data),
+                    UserWarning,
+                    stacklevel=2,
+                )
+                node_area = node_area[:nlev_data, :]
+
         # Create weights DataArray
         if node_area.ndim == 1:
             weights = xr.DataArray(node_area, dims=[node_dim])
@@ -94,6 +116,23 @@ def hovmoller(
             if node_area.ndim == 1:
                 weights = np.broadcast_to(node_area, (nlev, n2d))
             else:
+                nlev_area = node_area.shape[0]
+                if nlev_area != nlev:
+                    diff = nlev_area - nlev
+                    if diff != 1:
+                        raise ValueError(
+                            "node_area has {0} vertical levels but data has {1}; "
+                            "only node_area having one extra level is supported "
+                            "(levels vs layers).".format(nlev_area, nlev)
+                        )
+                    warnings.warn(
+                        "node_area has one more vertical level than data; "
+                        "using the first {0} levels of node_area to match data "
+                        "(levels vs layers).".format(nlev),
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    node_area = node_area[:nlev, :]
                 weights = node_area
 
             if mask is not None:
@@ -108,6 +147,23 @@ def hovmoller(
             if node_area.ndim == 1:
                 weights = np.broadcast_to(node_area, (nlev, n2d))
             else:
+                nlev_area = node_area.shape[0]
+                if nlev_area != nlev:
+                    diff = nlev_area - nlev
+                    if diff != 1:
+                        raise ValueError(
+                            "node_area has {0} vertical levels but data has {1}; "
+                            "only node_area having one extra level is supported "
+                            "(levels vs layers).".format(nlev_area, nlev)
+                        )
+                    warnings.warn(
+                        "node_area has one more vertical level than data; "
+                        "using the first {0} levels of node_area to match data "
+                        "(levels vs layers).".format(nlev),
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    node_area = node_area[:nlev, :]
                 weights = node_area
 
             if mask is not None:
