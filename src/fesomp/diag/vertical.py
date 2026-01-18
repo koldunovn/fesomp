@@ -359,6 +359,10 @@ def heat_content(
         Temperature in °C, shape (..., nlev-1, n2d).
     node_area : np.ndarray
         Area at each node in m², shape (n2d,) or (nlev, n2d).
+        If 2D and it has one extra level compared to layer_thickness, the extra
+        level is dropped with a warning (levels vs layers).
+        If 2D and it has one extra level compared to data layers, the extra
+        level is dropped with a warning (levels vs layers).
     depth_levels : np.ndarray
         Depth at level interfaces in meters, shape (nlev,).
     layer_thickness : np.ndarray, optional
@@ -409,19 +413,38 @@ def heat_content(
     layer_start = start_idx
     layer_end = min(end_idx, len(layer_thickness))
 
-    # Get surface area
-    area = get_surface_area(node_area)
-
-    # Apply mask
-    if mask is not None:
-        area = area * mask
-
     is_xarray = isinstance(temperature, xr.DataArray)
 
     if is_xarray:
         dims = temperature.dims
         node_dim = dims[-1]
         depth_dim = dims[-2]
+        nlev_data = temperature.sizes[depth_dim]
+
+        if node_area.ndim == 2:
+            nlev_area = node_area.shape[0]
+            if nlev_area != nlev_data:
+                diff = nlev_area - nlev_data
+                if diff != 1:
+                    raise ValueError(
+                        "node_area has {0} vertical levels but data has {1}; "
+                        "only node_area having one extra level is supported "
+                        "(levels vs layers).".format(nlev_area, nlev_data)
+                    )
+                warnings.warn(
+                    "node_area has one more vertical level than data; "
+                    "using the first {0} levels of node_area to match data "
+                    "(levels vs layers).".format(nlev_data),
+                    UserWarning,
+                    stacklevel=2,
+                )
+                node_area = node_area[:nlev_data, :]
+            area = node_area
+        else:
+            area = get_surface_area(node_area)
+
+        if mask is not None:
+            area = area * mask
 
         # Select depth range
         temp_sel = temperature.isel({depth_dim: slice(layer_start, layer_end)})
@@ -431,7 +454,11 @@ def heat_content(
         temp_anom = temp_sel - reference_temp
 
         # Create volume weights: area * thickness for each layer
-        weights_2d = np.outer(thickness_sel, area)  # (nlayers_sel, n2d)
+        if area.ndim == 2:
+            area_sel = area[layer_start:layer_end, :]
+            weights_2d = thickness_sel[:, np.newaxis] * area_sel
+        else:
+            weights_2d = np.outer(thickness_sel, area)  # (nlayers_sel, n2d)
         weights = xr.DataArray(weights_2d, dims=[depth_dim, node_dim])
 
         # Heat content = rho * cp * (T - T_ref) * volume
@@ -441,6 +468,32 @@ def heat_content(
 
     else:
         # Pure numpy
+        nlev_data = temperature.shape[-2]
+        if node_area.ndim == 2:
+            nlev_area = node_area.shape[0]
+            if nlev_area != nlev_data:
+                diff = nlev_area - nlev_data
+                if diff != 1:
+                    raise ValueError(
+                        "node_area has {0} vertical levels but data has {1}; "
+                        "only node_area having one extra level is supported "
+                        "(levels vs layers).".format(nlev_area, nlev_data)
+                    )
+                warnings.warn(
+                    "node_area has one more vertical level than data; "
+                    "using the first {0} levels of node_area to match data "
+                    "(levels vs layers).".format(nlev_data),
+                    UserWarning,
+                    stacklevel=2,
+                )
+                node_area = node_area[:nlev_data, :]
+            area = node_area
+        else:
+            area = get_surface_area(node_area)
+
+        if mask is not None:
+            area = area * mask
+
         # Select depth range
         temp_sel = temperature[..., layer_start:layer_end, :]
         thickness_sel = layer_thickness[layer_start:layer_end]
@@ -449,7 +502,11 @@ def heat_content(
         temp_anom = temp_sel - reference_temp
 
         # Volume weights: (nlayers, n2d)
-        volume = thickness_sel[:, np.newaxis] * area[np.newaxis, :]
+        if area.ndim == 2:
+            area_sel = area[layer_start:layer_end, :]
+            volume = thickness_sel[:, np.newaxis] * area_sel
+        else:
+            volume = thickness_sel[:, np.newaxis] * area[np.newaxis, :]
 
         # Heat content
         ohc = rho * cp * np.sum(temp_anom * volume, axis=(-2, -1))
@@ -496,11 +553,35 @@ def total_volume(
     thickness_sel = layer_thickness[layer_start:layer_end]
 
     # Get surface area
-    area = get_surface_area(node_area)
+    nlev_layers = len(layer_thickness)
+    if node_area.ndim == 2:
+        nlev_area = node_area.shape[0]
+        if nlev_area != nlev_layers:
+            diff = nlev_area - nlev_layers
+            if diff != 1:
+                raise ValueError(
+                    "node_area has {0} vertical levels but data has {1}; "
+                    "only node_area having one extra level is supported "
+                    "(levels vs layers).".format(nlev_area, nlev_layers)
+                )
+            warnings.warn(
+                "node_area has one more vertical level than data; "
+                "using the first {0} levels of node_area to match data "
+                "(levels vs layers).".format(nlev_layers),
+                UserWarning,
+                stacklevel=2,
+            )
+            node_area = node_area[:nlev_layers, :]
+        area = node_area
+    else:
+        area = get_surface_area(node_area)
 
     # Apply mask
     if mask is not None:
         area = area * mask
 
     # Total volume = sum(area * thickness)
+    if area.ndim == 2:
+        area_sel = area[layer_start:layer_end, :]
+        return float(np.sum(thickness_sel[:, np.newaxis] * area_sel))
     return float(np.sum(thickness_sel[:, np.newaxis] * area[np.newaxis, :]))

@@ -306,6 +306,32 @@ class TestHeatContent:
         expected = 1025 * 3985 * 10 * 4e12
         np.testing.assert_almost_equal(result, expected)
 
+    def test_heat_content_node_area_level_mismatch(self):
+        temp = np.ones((3, 2)) * 8.0  # 3 layers
+        node_area = np.array(
+            [
+                [1.0, 1.0],
+                [2.0, 2.0],
+                [3.0, 3.0],
+                [4.0, 4.0],
+            ]
+        )
+        depth_levels = np.array([0.0, 10.0, 20.0, 30.0])
+
+        with pytest.warns(UserWarning, match="node_area has one more vertical level"):
+            result = diag.heat_content(temp, node_area, depth_levels)
+
+        expected = diag.heat_content(temp, node_area[:3], depth_levels)
+        np.testing.assert_allclose(result, expected)
+
+    def test_heat_content_node_area_level_error(self):
+        temp = np.ones((4, 2)) * 8.0  # 4 layers
+        node_area = np.ones((3, 2))  # 3 levels
+        depth_levels = np.array([0.0, 10.0, 20.0, 30.0, 40.0])
+
+        with pytest.raises(ValueError, match="only node_area having one extra"):
+            diag.heat_content(temp, node_area, depth_levels)
+
 
 class TestTotalVolume:
     """Tests for total_volume function."""
@@ -319,6 +345,30 @@ class TestTotalVolume:
         # Total = 4 * 1e10 * (100 + 400) = 4 * 1e10 * 500 = 2e13 m³
         expected = 2e13
         np.testing.assert_almost_equal(result, expected)
+
+    def test_total_volume_node_area_level_mismatch(self):
+        node_area = np.array(
+            [
+                [1.0, 1.0],
+                [2.0, 2.0],
+                [3.0, 3.0],
+                [4.0, 4.0],
+            ]
+        )
+        depth_levels = np.array([0.0, 10.0, 20.0, 30.0])
+
+        with pytest.warns(UserWarning, match="node_area has one more vertical level"):
+            result = diag.total_volume(node_area, depth_levels)
+
+        expected = diag.total_volume(node_area[:3], depth_levels)
+        np.testing.assert_allclose(result, expected)
+
+    def test_total_volume_node_area_level_error(self):
+        node_area = np.ones((2, 2))  # 2 levels
+        depth_levels = np.array([0.0, 10.0, 20.0, 30.0])
+
+        with pytest.raises(ValueError, match="only node_area having one extra"):
+            diag.total_volume(node_area, depth_levels)
 
 
 class TestMixedLayerDepth:
